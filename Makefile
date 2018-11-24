@@ -1,12 +1,12 @@
+# project name (generate executable with this name)
+TARGET = tetris
+
 # currently directory of each file
 SRCDIR 		= src
 INCLUDEDIR 	= include
 OBJDIR 		= obj
 LIBDIR 		= lib
 BINDIR 		= bin
-
-# project name (generate executable with this name)
-TARGET = sudoku_game
 
 # compiler in use
 CC = gcc -std=c99
@@ -16,11 +16,10 @@ EXELINKER = $(CC) -o
 LIBLINKER = ar -crs
 
 # compiling flags here
-CFLAGS = -ggdb -Wall -Wunused -Wformat=0 -Werror\
--Ofast -fstack-protector-all -I./$(INCLUDEDIR)
+CFLAGS = -ggdb -fstack-protector-all -I./$(INCLUDEDIR)
 
 # list of libraries used
-LIBS = -lm -lncurses
+LIBS = -lncurses
 
 # general definition of the files
 STATICLIB 	= $(LIBDIR)/lib$(TARGET).a
