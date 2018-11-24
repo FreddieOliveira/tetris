@@ -1,218 +1,239 @@
 #include <ctype.h>
 #include <ncurses.h>
-#include <math.h>
-#include <signal.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <strings.h>
-#include <time.h>
+#include "tela.h"
 #include "telaMenu.h"
+#include "jogo.h"
 
-char
-despedida(void)
+typedef enum
 {
-    char *c;
+    NOVO_JOGO = 0,
+    DIFICULDADE,
+    SAIR_OP,
+    NUM_DE_OPCOES
+} opcoes_e;
 
-    if (g.cheats[0] != 0 || g.cheats[1] != 0 || g.dica != NULL)
-        c = "Fim de jogo!";
-    else
-        c = "Parabens, fim de jogo!";
+typedef struct
+{
+    int posicaoX;
+    int posicaoY;
+    char texto[30];
+} opcoes_s;
 
-    curs_set(0);
-    // show_timer();
-    show_banner(c);
+static opcoes_e opcaoAtual;
+static opcoes_s opcoes[] = {{0, 0, "Novo Jogo"},
+                            {0, 0, "Dificuldade"},
+                            {0, 0, "Sair"}};
+
+static void removeSelecao(opcoes_e op);
+static void desenhaSelecao(opcoes_e op);
+static void desenhaOpcoes(void);
+static void desenhaLogo(void);
+static void desenhaTela(void);
+
+estados_e
+processaTelaMenu(void)
+{
+    static bool necessitaDesenhar = true;
+    estados_e estado = TELA_MENU;
     int ch;
-    repete:
-    ch = getch();
-    ch = toupper(ch);
-    if (ch == 'E' || ch == KEY_ENTER)
-        ch = 'E';
-    else if (ch == 'R' || ch == 'N') {
-        //g.ini = time(0);
-    }
-    else
-        goto repete;
 
-    curs_set(1);
-    return ch;
+    if (necessitaDesenhar == true)
+    {
+        opcaoAtual = 0;
+        desenhaTela();
+        necessitaDesenhar = false;
+    }
+
+    // capitaliza o input para simplificar os cases
+    ch = toupper(getch());
+
+    switch (ch)
+    {
+        // redesenha a tela com ctrl-L
+        case CTRL('l'):
+            desenhaTela();
+            break;
+
+        // move o cursor pra cima qnd precionado a seta pra cima
+        case KEY_UP:
+            removeSelecao(opcaoAtual);
+            opcaoAtual = (opcaoAtual + NUM_DE_OPCOES - 1) % NUM_DE_OPCOES;
+            desenhaSelecao(opcaoAtual);
+            break;
+
+        // move o cursor pra baixo qnd precionado a seta pra baixo
+        case KEY_DOWN:
+            removeSelecao(opcaoAtual);
+            opcaoAtual = (opcaoAtual + 1) % NUM_DE_OPCOES;
+            desenhaSelecao(opcaoAtual);
+            break;
+
+        // move o cursor pra baixo qnd precionado a seta pra baixo
+        case KEY_RIGHT:
+        case KEY_ENTER:
+        case 10:
+            if (opcaoAtual == NOVO_JOGO)
+            {
+                estado = TELA_JOGO;
+            }
+            else if (opcaoAtual == SAIR_OP)
+            {
+                estado = SAIR;
+            }
+            necessitaDesenhar = true;
+            break;
+
+        default:
+            break;
+    }
+
+
+    return estado;
 }
 
-/*
- * Desenha a board do jogo
- */
-
-void
-draw_borders(void)
+static void
+removeSelecao(opcoes_e op)
 {
-    // pega as dimensoes da tela
-    int maxy, maxx;
-    getmaxyx(stdscr, maxy, maxx);
-
-    // ativa cores se possivel (else b&w highlighting)
+    // ativa cores se possivel
     if (has_colors())
     {
-        attron(A_PROTECT);
-        attron(COLOR_PAIR(PAIR_BORDER));
-    }
-    else
-        attron(A_REVERSE);
-
-    // desenha as bordas
-    for (int i = 0; i < maxx; i++)
-    {
-        mvaddch(0, i, ' ');
-        mvaddch(maxy-1, i, ' ');
+        attron(COLOR_PAIR(PAIR_SELECAO_OPCAO_MENU));
     }
 
-    // desenha o cabecalho
-    char header[maxx+1];
-    sprintf(header, "%s by %s", TITULO, AUTOR);
-    mvaddstr(0, (maxx - strlen(header)) / 2, header);
+    mvaddstr(opcoes[op].posicaoY, opcoes[op].posicaoX - 2, " ");
 
-    // desenha o rodape
-    mvaddstr(maxy-1, 1, "[N]ovo Jogo    [R]einicia Jogo");
-    mvaddstr(maxy-1, maxx-15, "[E]ncerra Jogo");
-
-    // desativa cores se possivel (else b&w highlighting)
     if (has_colors())
-        attroff(COLOR_PAIR(PAIR_BORDER));
-    else
-        attroff(A_REVERSE);
+    {
+        attroff(COLOR_PAIR(PAIR_SELECAO_OPCAO_MENU));
+    }
+
+    refresh();
 }
 
-
-void
-desenhaOpcoesMenu(void)
+static void
+desenhaSelecao(opcoes_e op)
 {
-    // pega as dimensoes da tela
-    int maxy, maxx;
-    getmaxyx(stdscr, maxy, maxx);
+    // ativa cores se possivel
+    if (has_colors())
+    {
+        attron(COLOR_PAIR(PAIR_SELECAO_OPCAO_MENU));
+    }
 
-    // determina onde o topo esquerdo da tela esta
-    g.top  = maxy / 2 + 3;
-    g.left = maxx / 2 - 11;
+    mvaddstr(opcoes[op].posicaoY, opcoes[op].posicaoX - 2, ">");
+
+    if (has_colors())
+    {
+        attroff(COLOR_PAIR(PAIR_SELECAO_OPCAO_MENU));
+    }
+
+    refresh();
+}
+
+static void
+desenhaOpcoes(void)
+{
+    int maxY, maxX;
+
+    // pega as dimensoes da tela
+    getmaxyx(stdscr, maxY, maxX);
+
+    // determina a posicao onde desenhar o menu
+    opcoes[0].posicaoY = maxY / 2 + 3;
+    opcoes[0].posicaoX = maxX / 2 - 11;
+
+    for (int i = 1; i < NUM_DE_OPCOES; i++)
+    {
+        opcoes[i].posicaoY = opcoes[i - 1].posicaoY + 1;
+        opcoes[i].posicaoX = opcoes[0].posicaoX;
+    }
 
     // ativa cores se possivel
     if (has_colors())
-        attron(COLOR_PAIR(PAIR_GRID));
+    {
+        attron(COLOR_PAIR(PAIR_OPCOES_MENU));
+    }
 
-    mvaddstr(g.top,     g.left, "Novo jogo");
-    mvaddstr(g.top + 1, g.left, "Dificuldade");
-    mvaddstr(g.top + 2, g.left, "Sair");
-
-    g.x = g.top;
-    g.y = g.left - 2;
-
-    if (has_colors())
-        attron(COLOR_PAIR(PAIR_MENU));
-
-    mvaddstr(g.x, g.y, ">");
+    for (int i = 0; i < NUM_DE_OPCOES; i++)
+    {
+        mvaddstr(opcoes[i].posicaoY, opcoes[i].posicaoX, opcoes[i].texto);
+    }
 
     // desativa cores se possivel
     if (has_colors())
-        attroff(COLOR_PAIR(PAIR_GRID));
+    {
+        attroff(COLOR_PAIR(PAIR_OPCOES_MENU));
+    }
+
+    refresh();
 }
 
-void
-desenhaLogoMenu(void)
+static void
+desenhaLogo(void)
 {
-    // determina as coordenadas do topo esquerdo do logo
-    // pega as dimensoes da tela
-    int maxy, maxx;
-    getmaxyx(stdscr, maxy, maxx);
+    int maxY, maxX;
+    int logoPositionY, logoPositionX;
 
-    // determina onde o topo esquerdo da tela esta
-    g.top  = maxy / 2 - 9;
-    g.left = maxx / 2 - 33;
+    // pega as dimensoes da tela
+    getmaxyx(stdscr, maxY, maxX);
+
+    // determina onde a logo sera desenhada
+    logoPositionY = maxY / 2 - 9;
+    logoPositionX = maxX / 2 - 33;
 
     // ativa cores se possivel
     if (has_colors())
-        attron(COLOR_PAIR(PAIR_LOGO));
+    {
+        attron(COLOR_PAIR(PAIR_LOGO_MENU_1));
+    }
 
-    // desenha o logo
-    mvaddstr(g.top + 0, g.left, " ________           __                __           ");
-    mvaddstr(g.top + 1, g.left, "|\\       \\         |\\ \\              |\\ \\          ");
-    mvaddstr(g.top + 2, g.left, " \\@@@@@@@@______  _| @@_     ______   \\@@  _______ ");
-    mvaddstr(g.top + 3, g.left, "   | @@  /\\     \\|\\ \\@@ \\   /\\     \\ |\\ \\ /\\      \\");
-    mvaddstr(g.top + 4, g.left, "   | @@ |\\ @@@@@@\\\\@@@@@@  |\\ @@@@@@\\| @@|\\ @@@@@@@");
-    mvaddstr(g.top + 5, g.left, "   | @@ | @@    @@ | @@ __ | @@   \\@@| @@ \\@@    \\ ");
-    mvaddstr(g.top + 6, g.left, "   | @@ | @@@@@@@@ | @@|\\ \\| @@      | @@ _\\@@@@@@\\");
-    mvaddstr(g.top + 7, g.left, "   | @@  \\@@     \\  \\@@ \\@@| @@      | @@|\\      @@");
-    mvaddstr(g.top + 8, g.left, "    \\@@   \\@@@@@@@   \\@@@@  \\@@       \\@@ \\@@@@@@@");
-
-        attron(COLOR_PAIR(PAIR_BORDER));
-    mvaddstr(g.top + 2, g.left + 2, "        ");
-    mvaddstr(g.top + 2, g.left + 21, "  ");
-    mvaddstr(g.top + 2, g.left + 39, "  ");
-    mvaddstr(g.top + 3, g.left + 5, "  ");
-    mvaddstr(g.top + 3, g.left + 21, "  ");
-    mvaddstr(g.top + 4, g.left + 5, "  ");
-    mvaddstr(g.top + 4, g.left + 11, "      ");
-    mvaddstr(g.top + 4, g.left + 19, "      ");
-    mvaddstr(g.top + 4, g.left + 30, "      ");
-    mvaddstr(g.top + 4, g.left + 39, "  ");
-    mvaddstr(g.top + 4, g.left + 44, "       ");
-    mvaddstr(g.top + 5, g.left + 5, "  ");
-    mvaddstr(g.top + 5, g.left + 10, "  ");
-    mvaddstr(g.top + 5, g.left + 16, "  ");
-    mvaddstr(g.top + 5, g.left + 21, "  ");
-    mvaddstr(g.top + 5, g.left + 29, "  ");
-    mvaddstr(g.top + 5, g.left + 35, "  ");
-    mvaddstr(g.top + 5, g.left + 39, "  ");
-    mvaddstr(g.top + 5, g.left + 43, "  ");
-    mvaddstr(g.top + 6, g.left + 5, "  ");
-    mvaddstr(g.top + 6, g.left + 10, "        ");
-    mvaddstr(g.top + 6, g.left + 21, "  ");
-    mvaddstr(g.top + 6, g.left + 29, "  ");
-    mvaddstr(g.top + 6, g.left + 39, "  ");
-    mvaddstr(g.top + 6, g.left + 44, "      ");
-    mvaddstr(g.top + 7, g.left + 5, "  ");
-    mvaddstr(g.top + 7, g.left + 10, "  ");
-    mvaddstr(g.top + 7, g.left + 21, "  ");
-    mvaddstr(g.top + 7, g.left + 25, "  ");
-    mvaddstr(g.top + 7, g.left + 29, "  ");
-    mvaddstr(g.top + 7, g.left + 39, "  ");
-    mvaddstr(g.top + 7, g.left + 49, "  ");
-    mvaddstr(g.top + 8, g.left + 5, "  ");
-    mvaddstr(g.top + 8, g.left + 11, "       ");
-    mvaddstr(g.top + 8, g.left + 22, "    ");
-    mvaddstr(g.top + 8, g.left + 24, "  ");
-    mvaddstr(g.top + 8, g.left + 29, "  ");
-    mvaddstr(g.top + 8, g.left + 39, "  ");
-    mvaddstr(g.top + 8, g.left + 43, "       ");
-
-    // assina o logo
-    char signature[3+strlen(AUTOR)+1];
-    sprintf(signature, "by %s", AUTOR);
+    // desenha a logo
+    mvaddstr(logoPositionY,     logoPositionX, " ________           __                __           ");
+    mvaddstr(logoPositionY + 1, logoPositionX, "|\\       \\         |\\ \\              |\\ \\          ");
+    mvaddstr(logoPositionY + 2, logoPositionX, " \\@@@@@@@@______  _| @@_     ______   \\@@  _______ ");
+    mvaddstr(logoPositionY + 3, logoPositionX, "   | @@  /\\     \\|\\ \\@@ \\   /\\     \\ |\\ \\ /\\      \\");
+    mvaddstr(logoPositionY + 4, logoPositionX, "   | @@ |\\ @@@@@@\\\\@@@@@@  |\\ @@@@@@\\| @@|\\ @@@@@@@");
+    mvaddstr(logoPositionY + 5, logoPositionX, "   | @@ | @@    @@ | @@ __ | @@   \\@@| @@ \\@@    \\ ");
+    mvaddstr(logoPositionY + 6, logoPositionX, "   | @@ | @@@@@@@@ | @@|\\ \\| @@      | @@ _\\@@@@@@\\");
+    mvaddstr(logoPositionY + 7, logoPositionX, "   | @@  \\@@     \\  \\@@ \\@@| @@      | @@|\\      @@");
+    mvaddstr(logoPositionY + 8, logoPositionX, "    \\@@   \\@@@@@@@   \\@@@@  \\@@       \\@@ \\@@@@@@@");
 
     if (has_colors())
-        attron(COLOR_PAIR(PAIR_BANNER));
+    {
+        attroff(COLOR_PAIR(PAIR_LOGO_MENU_1));
+        attron(COLOR_PAIR(PAIR_LOGO_MENU_2));
 
-    mvaddstr(g.top + 10, g.left + 52 - strlen(signature) - 1, signature);
+        for (int i = 0; i <= 8; i++)
+        {
+            for (int j = 0; logoPositionX + j < maxX; j++)
+            {
+                if ((mvinch(logoPositionY + i, logoPositionX + j) & A_CHARTEXT) == '@')
+                {
+                    mvaddstr(logoPositionY + i, logoPositionX + j, " ");
+                }
+            }
+        }
+
+        attroff(COLOR_PAIR(PAIR_LOGO_MENU_2));
+        attron(COLOR_PAIR(PAIR_AUTOR));
+    }
+
+    mvaddstr(logoPositionY + 10, logoPositionX + 41, "by Freddie");
 
     // desativa cores se possivel
     if (has_colors())
-        attroff(COLOR_PAIR(PAIR_LOGO));
+    {
+        attroff(COLOR_PAIR(PAIR_AUTOR));
+    }
+
+    refresh();
 }
 
 /*
- * Desenha os numeros do jogo.
+ * Desenha toda a tela de menu
  */
 
-void
-handle_signal(int signum)
-{
-    if (signum == SIGWINCH)
-        redraw_all();
-
-    signal(signum, (void (*)(int)) handle_signal);
-}
-
-
-void
-desenhaMenu(void)
+static void
+desenhaTela(void)
 {
     // reseta ncurses
     endwin();
@@ -222,74 +243,8 @@ desenhaMenu(void)
     clear();
 
     // redesenha tudo
-    desenhaLogoMenu();
-    desenhaOpcoesMenu();
-
-    move(g.x, g.y);
-}
-
-
-/*
- * Encerra ncurses.
- */
-
-void
-shutdown(void) {
-    endwin();
-}
-
-
-/*
- * Inicia ncurses. Retorna true se sucesso.
- */
-
-bool
-startup(void)
-{
-    // inicializa ncurses
-    if (initscr() == NULL)
-    {
-        return false;
-    }
-
-    // prepara as cores se possivel
-    if (has_colors())
-    {
-        // ativa cores
-        if (start_color() == ERR || attron(A_PROTECT) == ERR)
-        {
-            endwin();
-            return false;
-        }
-
-        // inicializa os pares de cores
-        if (init_pair(PAIR_BANNER, FG_BANNER, BG_BANNER) == ERR ||
-            init_pair(PAIR_BORDER, FG_BORDER, BG_BORDER) == ERR ||
-            init_pair(PAIR_TIMER, FG_TIMER, BG_TIMER)    == ERR ||
-            init_pair(PAIR_GRID, FG_GRID, BG_GRID)       == ERR ||
-            init_pair(PAIR_LOGO, FG_LOGO, BG_LOGO)       == ERR ||
-            init_pair(PAIR_MENU, FG_MENU, BG_MENU)       == ERR)
-        {
-            endwin();
-            return false;
-        }
-    }
-
-    // habilita o uso das setas do teclado e desativa echo no input do usuario
-    if (keypad(stdscr, true) == ERR || noecho() == ERR || raw() == ERR)
-    {
-        endwin();
-        return false;
-    }
-
-    // Atualiza a tela caso a janela seja redimencionada.
-	signal(SIGWINCH, (void (*)(int)) handle_signal);
-
-    // torna o cursor invisivel
-    curs_set(0);
-
-    timeout(1000);
-
-    return true;
+    desenhaLogo();
+    desenhaOpcoes();
+    desenhaSelecao(opcaoAtual);
 }
 
