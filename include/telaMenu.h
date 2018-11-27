@@ -5,8 +5,5 @@
 
 estados_e processaTelaMenu(void);
 
-// titulo do jogo
-#define TITULO "Tetris"
-
-#endif
+#endif /* TELA_MENU_H */
 

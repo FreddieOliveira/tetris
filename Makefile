@@ -16,7 +16,7 @@ EXELINKER = $(CC) -o
 LIBLINKER = ar -crs
 
 # compiling flags here
-CFLAGS = -ggdb -fstack-protector-all -I./$(INCLUDEDIR)
+CFLAGS = -ggdb3 -fstack-protector-all -I./$(INCLUDEDIR)
 
 # list of libraries used
 LIBS = -lncurses
@@ -39,7 +39,7 @@ find = find -maxdepth 1 -name
 # move process
 mv = mv -i
 
-# links the objects creating the static library and the executable 
+# links the objects creating the static library and the executable
 $(BINDIR)/$(TARGET): $(OBJECTS)
 	@$(LIBLINKER) $(STATICLIB) $(OBJECTS)
 	@$(EXELINKER) $@ $(STATICLIB) $(LIBS)
