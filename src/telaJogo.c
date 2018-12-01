@@ -518,14 +518,15 @@ atualizaEstatisticas(int num)
 
     if (num != 0)
     {
-        int aux;
+        int aux1, aux2;
 
+        aux1 = numLinhasEliminadas / 10;
         numLinhasEliminadas += num;
-        aux = numLinhasEliminadas / 10;
+        aux2 = numLinhasEliminadas / 10;
 
-        if (aux != dificuldade && dificuldade < 30)
+        if (aux1 != aux2)
         {
-            dificuldade += aux;
+            dificuldade = (dificuldade + aux2 - aux1 > 30) ? 30 : dificuldade + aux2 - aux1;
             iniciaTimer(1000000 - dificuldade * 20000);
         }
 
