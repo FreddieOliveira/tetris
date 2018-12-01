@@ -11,7 +11,7 @@
 #include "tela.h"
 #include "jogo.h"
 
-#define ARENA_ALTURA  12
+#define ARENA_ALTURA  15
 #define ARENA_LARGURA 10
 
 typedef enum
@@ -463,8 +463,8 @@ apagaPecaAtual(void)
         if (pecaAtual.coordenadas[i].posicaoY > 0)
         {
             mvaddstr(pecaAtual.coordenadas[i].posicaoY + posY,
-                     pecaAtual.coordenadas[i].posicaoX + posX,
-                     " ");
+                     pecaAtual.coordenadas[i].posicaoX * 2 + posX,
+                     "  ");
         }
     }
 
@@ -644,7 +644,7 @@ desenhaDashBoard(void)
 
     // determina a posicao onde desenhar o menu
     posY = (maxY - ARENA_ALTURA) / 2 + 1;
-    posX = (maxX - ARENA_LARGURA) / 2 - 18;
+    posX = (maxX - ARENA_LARGURA) / 2 - 22;
 
     // ativa cores se possivel
     if (has_colors())
@@ -666,13 +666,13 @@ desenhaDashBoard(void)
         {
             if (pecas[proximoTipoPeca][i][j] != 0)
             {
-                mvaddstr(posY + i, posX + j + 12, ".");
+                mvaddstr(posY + i, posX + j * 2 + 12, "..");
             }
             else if (has_colors())
             {
                 attroff(COLOR_PAIR(pecaCor[proximoTipoPeca]));
                 attron(COLOR_PAIR(PAIR_OPCOES_MENU));
-                mvaddstr(posY + i, posX + j + 12, " ");
+                mvaddstr(posY + i, posX + j * 2 + 12, "  ");
                 attroff(COLOR_PAIR(PAIR_OPCOES_MENU));
                 attron(COLOR_PAIR(pecaCor[proximoTipoPeca]));
             }
@@ -756,7 +756,7 @@ desenhaArena(void)
                     attron(COLOR_PAIR(PAIR_ARENA_JOGO));
                 }
 
-                mvaddstr(posY + i, posX + j, " ");
+                mvaddstr(posY + i, posX + j * 2, "  ");
 
                 // desativa cores se possivel
                 if (has_colors())
@@ -780,7 +780,7 @@ desenhaArena(void)
                     attron(COLOR_PAIR(pecaCor[arena[i][j]]));
                 }
 
-                mvaddstr(posY + i, posX + j, ".");
+                mvaddstr(posY + i, posX + j * 2, "..");
 
                 // desativa cores se possivel
                 if (has_colors())
@@ -836,8 +836,8 @@ desenhaPecaAtual(void)
         if (pecaAtual.coordenadas[i].posicaoY > 0)
         {
             mvaddstr(pecaAtual.coordenadas[i].posicaoY + posY,
-                     pecaAtual.coordenadas[i].posicaoX + posX,
-                     ".");
+                     pecaAtual.coordenadas[i].posicaoX * 2 + posX,
+                     "..");
         }
     }
 
