@@ -11,7 +11,7 @@
 #include "tela.h"
 #include "jogo.h"
 
-#define ARENA_ALTURA  15
+#define ARENA_ALTURA  17
 #define ARENA_LARGURA 10
 
 typedef enum
@@ -65,16 +65,20 @@ typedef struct
         int posicaoX;
         int posicaoY;
     } coordenadas[4];
-} pecaAtual_s;
+} peca_s;
 
-static pecaAtual_s pecaAtual;
+static peca_s pecaAtual, projecao;
 static tipoPecas_e proximoTipoPeca;
+static int numPecasEscolhidas[NUM_TIPO_PECAS];
 static int arena[ARENA_ALTURA][ARENA_LARGURA];
 static int pontuacao;
 static int numLinhasEliminadas;
 static int dificuldade;
 static bool gameOver;
 
+static int getPieceLowerPosY(peca_s peca);
+static int getPieceHigherPosY(peca_s peca);
+static void desenhaPecaGenerica(tipoPecas_e tipoPeca, int posicaoY, int posicaoX);
 static void atualizaRecorde(void);
 static void desenhaBordas(void);
 static void desenhaDashBoard(void);
@@ -83,17 +87,21 @@ static bool iniciaTimer(int tempo);
 static int  atualizaArena(void);
 static void atualizaEstatisticas(int num);
 static bool confirmacao(char *texto);
-static bool rotacionaPecaAtual(void);
-static bool rotacionaPecaAtualAux(void);
+static int rotacionaPecaAtual(void);
+static int rotacionaPeca(peca_s *peca);
+static int rotacionaPecaAux(peca_s *peca);
+static int  movimentaPeca(peca_s *peca, direcao_e direcao);
 static int  movimentaPecaAtual(direcao_e direcao);
 static void reiniciaJogo(void);
 static void finalizaJogo(void);
 static bool verificaGameOver(void);
 static void escolhePecaAtual(void);
 static void apagaPecaAtual(void);
+static void apagaPeca(peca_s peca);
 static void desenhaNumLinhasEliminadas(void);
 static void desenhaArena(void);
 static void desenhaPecaAtual(void);
+static void desenhaPeca(peca_s peca);
 static void desenhaTela(void);
 static void desenhaLogoJogo(void);
 static void desenhaGameOver(void);
@@ -136,23 +144,17 @@ processaTelaJogo(void)
 
         // move o cursor pra cima qnd precionado a seta pra cima
         case KEY_UP:
-            apagaPecaAtual();
             rotacionaPecaAtual();
-            desenhaPecaAtual();
             break;
 
         // move o cursor pra baixo qnd precionado a seta pra baixo
         case KEY_RIGHT:
-            apagaPecaAtual();
             movimentaPecaAtual(DIREITA);
-            desenhaPecaAtual();
             break;
 
         // move o cursor pra baixo qnd precionado a seta pra baixo
         case KEY_LEFT:
-            apagaPecaAtual();
             movimentaPecaAtual(ESQUERDA);
-            desenhaPecaAtual();
             break;
 
         // hard drop
@@ -306,79 +308,79 @@ confirmacao(char *texto)
 
 // sentido anti-horario
 
-static bool
-rotacionaPecaAtualAux(void)
+static int
+rotacionaPecaAux(peca_s *peca)
 {
-    if (pecaAtual.tipoPeca == PECA_INVALIDA)
+    if (peca->tipoPeca == PECA_INVALIDA)
     {
-        return false;
+        return 0;
     }
 
-    for (int i = 1; i < pecaAtual.numCoordenadas; i++)
+    for (int i = 1; i < peca->numCoordenadas; i++)
     {
-        int dy = pecaAtual.coordenadas[0].posicaoY - pecaAtual.coordenadas[i].posicaoY;
-        int dx = pecaAtual.coordenadas[0].posicaoX - pecaAtual.coordenadas[i].posicaoX;
+        int dy = peca->coordenadas[0].posicaoY - peca->coordenadas[i].posicaoY;
+        int dx = peca->coordenadas[0].posicaoX - peca->coordenadas[i].posicaoX;
     
-        if (pecaAtual.coordenadas[0].posicaoY + dx >= ARENA_ALTURA ||
-            pecaAtual.coordenadas[0].posicaoX - dy < 0 ||
-            pecaAtual.coordenadas[0].posicaoX - dy >= ARENA_LARGURA ||
-            (pecaAtual.coordenadas[0].posicaoY + dx > 0 &&
-             arena[pecaAtual.coordenadas[0].posicaoY + dx][pecaAtual.coordenadas[0].posicaoX - dy] != PECA_INVALIDA))
+        if (peca->coordenadas[0].posicaoY + dx >= ARENA_ALTURA ||
+            peca->coordenadas[0].posicaoX - dy < 0 ||
+            peca->coordenadas[0].posicaoX - dy >= ARENA_LARGURA ||
+            (peca->coordenadas[0].posicaoY + dx > 0 &&
+             arena[peca->coordenadas[0].posicaoY + dx][peca->coordenadas[0].posicaoX - dy] != PECA_INVALIDA))
         {
-            return false;
+            return 0;
         }
     }
     
-    for (int i = 1; i < pecaAtual.numCoordenadas; i++)
+    for (int i = 1; i < peca->numCoordenadas; i++)
     {
-        int dy = pecaAtual.coordenadas[0].posicaoY - pecaAtual.coordenadas[i].posicaoY;
-        int dx = pecaAtual.coordenadas[0].posicaoX - pecaAtual.coordenadas[i].posicaoX;
+        int dy = peca->coordenadas[0].posicaoY - peca->coordenadas[i].posicaoY;
+        int dx = peca->coordenadas[0].posicaoX - peca->coordenadas[i].posicaoX;
     
-        pecaAtual.coordenadas[i].posicaoY = pecaAtual.coordenadas[0].posicaoY + dx;
-        pecaAtual.coordenadas[i].posicaoX = pecaAtual.coordenadas[0].posicaoX - dy;
+        peca->coordenadas[i].posicaoY = peca->coordenadas[0].posicaoY + dx;
+        peca->coordenadas[i].posicaoX = peca->coordenadas[0].posicaoX - dy;
     }
 
-    return true;
+    return 1;
 }
 
-static bool
-rotacionaPecaAtual(void)
+static int
+rotacionaPeca(peca_s *peca)
 {
-    bool status = false;
+    int status = -1;
 
-    if (pecaAtual.tipoPeca == PECA_INVALIDA)
+    if (peca->tipoPeca == PECA_INVALIDA)
     {
-        return false;
+        return -1;
     }
 
-    switch (pecaAtual.tipoPeca)
+    switch (peca->tipoPeca)
     {
         case TIPO_T:
-            status = rotacionaPecaAtualAux();
+            status = rotacionaPecaAux(peca);
             break;
 
         case TIPO_Z1:
-            status = rotacionaPecaAtualAux();
+            status = rotacionaPecaAux(peca);
             break;
 
         case TIPO_Z2:
-            status = rotacionaPecaAtualAux();
+            status = rotacionaPecaAux(peca);
             break;
 
         case TIPO_O:
-            status = true;
+            status = 1;
             break;
 
         case TIPO_L1:
-            status = rotacionaPecaAtualAux();
+            status = rotacionaPecaAux(peca);
             break;
 
         case TIPO_L2:
-            status = rotacionaPecaAtualAux();
+            status = rotacionaPecaAux(peca);
             break;
 
         case TIPO_I:
-            status = rotacionaPecaAtualAux();
+            status = rotacionaPecaAux(peca);
             break;
 
         default:
@@ -389,45 +391,151 @@ rotacionaPecaAtual(void)
 }
 
 static int
-movimentaPecaAtual(direcao_e direcao)
+rotacionaPecaAtual(void)
 {
+    int status;
+
     if (pecaAtual.tipoPeca == PECA_INVALIDA)
     {
         return -1;
     }
 
-    for (int i = 0; i < pecaAtual.numCoordenadas; i++)
+    apagaPecaAtual();
+    status = rotacionaPeca(&pecaAtual);
+    memcpy(&projecao.coordenadas, &pecaAtual.coordenadas, sizeof(projecao.coordenadas));
+    while (movimentaPeca(&projecao, BAIXO) == true);
+    desenhaPecaAtual();
+
+    return status;
+}
+
+static void
+apagaPecaAtual(void)
+{
+    apagaPeca(pecaAtual);
+    apagaPeca(projecao);
+}
+
+static void
+desenhaPecaAtual(void)
+{
+    desenhaPeca(pecaAtual);
+
+    if (getPieceHigherPosY(projecao) - getPieceLowerPosY(pecaAtual) > 3)
+    {
+        desenhaPeca(projecao);
+    }
+}
+
+static int
+getPieceLowerPosY(peca_s peca)
+{
+    int lowerPos;
+
+    if (peca.tipoPeca == PECA_INVALIDA)
+    {
+        return -1;
+    }
+
+    lowerPos = peca.coordenadas[0].posicaoY;
+
+    for (int i = 1; i < peca.numCoordenadas; i++)
+    {
+        if (peca.coordenadas[i].posicaoY > lowerPos)
+        {
+            lowerPos = peca.coordenadas[i].posicaoY;
+        }
+    }
+
+    return lowerPos;
+}
+
+static int
+getPieceHigherPosY(peca_s peca)
+{
+    int higherPos;
+
+    if (peca.tipoPeca == PECA_INVALIDA)
+    {
+        return -1;
+    }
+
+    higherPos = peca.coordenadas[0].posicaoY;
+
+    for (int i = 1; i < peca.numCoordenadas; i++)
+    {
+        if (peca.coordenadas[i].posicaoY < higherPos)
+        {
+            higherPos = peca.coordenadas[i].posicaoY;
+        }
+    }
+
+    return higherPos;
+}
+
+static int
+movimentaPecaAtual(direcao_e direcao)
+{
+    int status;
+
+    if (pecaAtual.tipoPeca == PECA_INVALIDA)
+    {
+        return -1;
+    }
+
+    apagaPecaAtual();
+    status = movimentaPeca(&pecaAtual, direcao);
+
+    if (direcao != BAIXO)
+    {
+        memcpy(&projecao.coordenadas, &pecaAtual.coordenadas, sizeof(projecao.coordenadas));
+        while (movimentaPeca(&projecao, BAIXO) == true);
+    }
+
+    desenhaPecaAtual();
+
+    return status;
+}
+static int
+movimentaPeca(peca_s *peca, direcao_e direcao)
+{
+    if (peca->tipoPeca == PECA_INVALIDA)
+    {
+        return -1;
+    }
+
+    for (int i = 0; i < peca->numCoordenadas; i++)
     {
         if (direcao == DIREITA || direcao == ESQUERDA)
         {
-            if (pecaAtual.coordenadas[i].posicaoX + direcao < 0  ||
-                pecaAtual.coordenadas[i].posicaoX + direcao >= ARENA_LARGURA ||
-                (pecaAtual.coordenadas[i].posicaoY > 0 &&
-                 arena[pecaAtual.coordenadas[i].posicaoY][pecaAtual.coordenadas[i].posicaoX + direcao] != PECA_INVALIDA))
+            if (peca->coordenadas[i].posicaoX + direcao < 0  ||
+                peca->coordenadas[i].posicaoX + direcao >= ARENA_LARGURA ||
+                (peca->coordenadas[i].posicaoY > 0 &&
+                 arena[peca->coordenadas[i].posicaoY][peca->coordenadas[i].posicaoX + direcao] != PECA_INVALIDA))
             {
                 return 0;
             }
         }
         else
         {
-            if (pecaAtual.coordenadas[i].posicaoY + 1 >= ARENA_ALTURA ||
-                (pecaAtual.coordenadas[i].posicaoY + 1 > 0 &&
-                 arena[pecaAtual.coordenadas[i].posicaoY + 1][pecaAtual.coordenadas[i].posicaoX] != PECA_INVALIDA))
+            if (peca->coordenadas[i].posicaoY + 1 >= ARENA_ALTURA ||
+                (peca->coordenadas[i].posicaoY + 1 > 0 &&
+                 arena[peca->coordenadas[i].posicaoY + 1][peca->coordenadas[i].posicaoX] != PECA_INVALIDA))
             {
                 return 0;
             }
         }
     }
 
-    for (int i = 0; i < pecaAtual.numCoordenadas; i++)
+    for (int i = 0; i < peca->numCoordenadas; i++)
     {
         if (direcao == DIREITA || direcao == ESQUERDA)
         {
-            pecaAtual.coordenadas[i].posicaoX += direcao;
+            peca->coordenadas[i].posicaoX += direcao;
         }
         else
         {
-            pecaAtual.coordenadas[i].posicaoY++;
+            peca->coordenadas[i].posicaoY++;
         }
     }
 
@@ -435,12 +543,12 @@ movimentaPecaAtual(direcao_e direcao)
 }
 
 static void
-apagaPecaAtual(void)
+apagaPeca(peca_s peca)
 {
     int maxY, maxX;
     int posY, posX;
 
-    if (pecaAtual.tipoPeca == PECA_INVALIDA)
+    if (peca.tipoPeca == PECA_INVALIDA)
     {
         return;
     }
@@ -458,12 +566,12 @@ apagaPecaAtual(void)
         attron(COLOR_PAIR(PAIR_ARENA_JOGO));
     }
 
-    for (int i = 0; i < pecaAtual.numCoordenadas; i++)
+    for (int i = 0; i < peca.numCoordenadas; i++)
     {
-        if (pecaAtual.coordenadas[i].posicaoY > 0)
+        if (peca.coordenadas[i].posicaoY > 0)
         {
-            mvaddstr(pecaAtual.coordenadas[i].posicaoY + posY,
-                     pecaAtual.coordenadas[i].posicaoX * 2 + posX,
+            mvaddstr(peca.coordenadas[i].posicaoY + posY,
+                     peca.coordenadas[i].posicaoX * 2 + posX,
                      "  ");
         }
     }
@@ -557,6 +665,7 @@ finalizaJogo(void)
             arena[i][j] = PECA_INVALIDA;
         }
     }
+    memset(numPecasEscolhidas, 0, sizeof(numPecasEscolhidas));
     pecaAtual.numCoordenadas = 0;
     pecaAtual.tipoPeca = PECA_INVALIDA;
     proximoTipoPeca = PECA_INVALIDA;
@@ -591,6 +700,7 @@ escolhePecaAtual(void)
         proximoTipoPeca = random() % NUM_TIPO_PECAS;
     }
 
+    numPecasEscolhidas[proximoTipoPeca]++;
     pecaAtual.tipoPeca = proximoTipoPeca;
     pecaAtual.numCoordenadas = 1;
 
@@ -616,14 +726,16 @@ escolhePecaAtual(void)
 
     for (int i = 0, j = random() % ARENA_LARGURA; i < j; i++)
     {
-        movimentaPecaAtual(DIREITA);
+        movimentaPeca(&pecaAtual, DIREITA);
     }
 
     for (int i = 0, j = random() % 4; i < j; i++)
     {
-        rotacionaPecaAtual();
+        rotacionaPeca(&pecaAtual);
     }
 
+    memcpy(&projecao, &pecaAtual, sizeof(projecao));
+    while (movimentaPeca(&projecao, BAIXO) == true);
     proximoTipoPeca = random() % NUM_TIPO_PECAS;
 }
 
@@ -632,13 +744,8 @@ desenhaDashBoard(void)
 {
     int maxY, maxX;
     int posY, posX;
-    int pecaCor[] = {PAIR_PECA_TIPO_T_JOGO,
-                     PAIR_PECA_TIPO_Z1_JOGO,
-                     PAIR_PECA_TIPO_Z2_JOGO,
-                     PAIR_PECA_TIPO_O_JOGO,
-                     PAIR_PECA_TIPO_L1_JOGO,
-                     PAIR_PECA_TIPO_L2_JOGO,
-                     PAIR_PECA_TIPO_I_JOGO};
+    int baseY;
+    int total = 0;
 
     // pega as dimensoes da tela
     getmaxyx(stdscr, maxY, maxX);
@@ -646,50 +753,42 @@ desenhaDashBoard(void)
     // determina a posicao onde desenhar o menu
     posY = (maxY - ARENA_ALTURA) / 2 + 1;
     posX = (maxX - ARENA_LARGURA) / 2 - 22;
+    baseY = posY - ((NUM_TIPO_PECAS * 2 + NUM_TIPO_PECAS - 1) - ARENA_ALTURA) / 2 - 2;
 
-    // ativa cores se possivel
+    for (int k = 0; k < NUM_TIPO_PECAS; k++)
+    {
+        total += numPecasEscolhidas[k];
+        desenhaPecaGenerica(k, baseY + k * 3, posX + ARENA_LARGURA * 2 + 27);
+
+        if (has_colors())
+        {
+            attron(COLOR_PAIR(PAIR_DASHBOARD_JOGO));
+        }
+
+        mvprintw(baseY + k * 3, posX + ARENA_LARGURA * 2 + 36, "%d", numPecasEscolhidas[k]);
+
+        if (has_colors())
+        {
+            attroff(COLOR_PAIR(PAIR_DASHBOARD_JOGO));
+        }
+
+        if (k == proximoTipoPeca)
+        {
+            desenhaPecaGenerica(k, posY, posX + 12);
+        }
+    }
+
     if (has_colors())
     {
         attron(COLOR_PAIR(PAIR_DASHBOARD_JOGO));
     }
 
     mvaddstr(posY, posX, "Prox. peca: ");
-
-    if (has_colors())
-    {
-        attroff(COLOR_PAIR(PAIR_DASHBOARD_JOGO));
-        attron(COLOR_PAIR(pecaCor[proximoTipoPeca]));
-    }
-
-    for (int i = 0; i < 2; i++)
-    {
-        for (int j = 0; j < 4; j++)
-        {
-            if (pecas[proximoTipoPeca][i][j] != 0)
-            {
-                mvaddstr(posY + i, posX + j * 2 + 12, "..");
-            }
-            else if (has_colors())
-            {
-                attroff(COLOR_PAIR(pecaCor[proximoTipoPeca]));
-                attron(COLOR_PAIR(PAIR_OPCOES_MENU));
-                mvaddstr(posY + i, posX + j * 2 + 12, "  ");
-                attroff(COLOR_PAIR(PAIR_OPCOES_MENU));
-                attron(COLOR_PAIR(pecaCor[proximoTipoPeca]));
-            }
-        }
-    }
-
-    if (has_colors())
-    {
-        attroff(COLOR_PAIR(pecaCor[proximoTipoPeca]));
-        attron(COLOR_PAIR(PAIR_DASHBOARD_JOGO));
-    }
-
+    mvprintw(baseY + NUM_TIPO_PECAS * 2 + NUM_TIPO_PECAS - 1, posX + ARENA_LARGURA * 2 + 29, "Total: %d", total);
     mvprintw(posY + ARENA_ALTURA - 5, posX, "Recorde: %d", jogo.recordes[0]);
     mvprintw(posY + ARENA_ALTURA - 4, posX, "Pontos: %d", pontuacao);
     mvprintw(posY + ARENA_ALTURA - 3, posX, "Linhas: %d", numLinhasEliminadas);
-    mvprintw(posY + ARENA_ALTURA - 2,    posX, "Dificuldade: %d", dificuldade);
+    mvprintw(posY + ARENA_ALTURA - 2, posX, "Dificuldade: %d", dificuldade);
 
     // desativa cores se possivel
     if (has_colors())
@@ -698,6 +797,53 @@ desenhaDashBoard(void)
     }
 
     refresh();
+}
+
+static void
+desenhaPecaGenerica(tipoPecas_e tipoPeca, int posicaoY, int posicaoX)
+{
+    int pecaCor[] = {PAIR_PECA_TIPO_T_JOGO,
+                     PAIR_PECA_TIPO_Z1_JOGO,
+                     PAIR_PECA_TIPO_Z2_JOGO,
+                     PAIR_PECA_TIPO_O_JOGO,
+                     PAIR_PECA_TIPO_L1_JOGO,
+                     PAIR_PECA_TIPO_L2_JOGO,
+                     PAIR_PECA_TIPO_I_JOGO};
+
+    for (int i = 0; i < 2; i++)
+    {
+        for (int j = 0; j < 4; j++)
+        {
+            if (pecas[tipoPeca][i][j] != 0)
+            {
+                if (has_colors())
+                {
+                    attron(COLOR_PAIR(pecaCor[tipoPeca]));
+                }
+
+                mvaddstr(posicaoY + i, posicaoX + j * 2, "..");
+
+                if (has_colors())
+                {
+                    attroff(COLOR_PAIR(pecaCor[tipoPeca]));
+                }
+            }
+            else 
+            {
+                if (has_colors())
+                {
+                    attron(COLOR_PAIR(PAIR_OPCOES_MENU));
+                }
+
+                mvaddstr(posicaoY + i, posicaoX + j * 2, "  ");
+
+                if (has_colors())
+                {
+                    attroff(COLOR_PAIR(PAIR_OPCOES_MENU));
+                }
+            }
+        }
+    }
 }
 
 static void
@@ -802,7 +948,7 @@ desenhaLogoJogo(void)
 }
 
 static void
-desenhaPecaAtual(void)
+desenhaPeca(peca_s peca)
 {
     int maxY, maxX;
     int posY, posX;
@@ -814,7 +960,7 @@ desenhaPecaAtual(void)
                      PAIR_PECA_TIPO_L2_JOGO,
                      PAIR_PECA_TIPO_I_JOGO};
 
-    if (pecaAtual.tipoPeca == PECA_INVALIDA)
+    if (peca.tipoPeca == PECA_INVALIDA)
     {
         return;
     }
@@ -829,15 +975,15 @@ desenhaPecaAtual(void)
     // ativa cores se possivel
     if (has_colors())
     {
-        attron(COLOR_PAIR(pecaCor[pecaAtual.tipoPeca]));
+        attron(COLOR_PAIR(pecaCor[peca.tipoPeca]));
     }
 
-    for (int i = 0; i < pecaAtual.numCoordenadas; i++)
+    for (int i = 0; i < peca.numCoordenadas; i++)
     {
-        if (pecaAtual.coordenadas[i].posicaoY > 0)
+        if (peca.coordenadas[i].posicaoY > 0)
         {
-            mvaddstr(pecaAtual.coordenadas[i].posicaoY + posY,
-                     pecaAtual.coordenadas[i].posicaoX * 2 + posX,
+            mvaddstr(peca.coordenadas[i].posicaoY + posY,
+                     peca.coordenadas[i].posicaoX * 2 + posX,
                      "..");
         }
     }
@@ -845,7 +991,7 @@ desenhaPecaAtual(void)
     // desativa cores se possivel
     if (has_colors())
     {
-        attroff(COLOR_PAIR(pecaCor[pecaAtual.tipoPeca]));
+        attroff(COLOR_PAIR(pecaCor[peca.tipoPeca]));
     }
 
     refresh();
@@ -886,11 +1032,10 @@ atualizaRecorde(void)
         }
     }
 }
+
 static void
 abaixaPecaAtual(void)
 {
-    apagaPecaAtual();
-
     if (movimentaPecaAtual(BAIXO) == 0)
     {
         atualizaEstatisticas(atualizaArena());
@@ -907,8 +1052,6 @@ abaixaPecaAtual(void)
             desenhaDashBoard();
         }
     }
-
-    desenhaPecaAtual();
 }
 
 static void
