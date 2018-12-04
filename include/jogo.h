@@ -3,7 +3,7 @@
 
 // titulo do jogo
 #define TITULO "Tetris"
-#define AUTOR  "Nicole"
+#define AUTOR  "Freddie"
 
 typedef enum
 {
