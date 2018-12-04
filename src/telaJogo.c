@@ -31,6 +31,7 @@ typedef enum
     TIPO_L2,
     TIPO_I,
     NUM_TIPO_PECAS,
+    PECA_PROJECAO,
     PECA_INVALIDA
 } tipoPecas_e;
                                //  T
@@ -735,6 +736,7 @@ escolhePecaAtual(void)
     }
 
     memcpy(&projecao, &pecaAtual, sizeof(projecao));
+    projecao.tipoPeca = PECA_PROJECAO;
     while (movimentaPeca(&projecao, BAIXO) == true);
     proximoTipoPeca = random() % NUM_TIPO_PECAS;
 }
@@ -958,7 +960,9 @@ desenhaPeca(peca_s peca)
                      PAIR_PECA_TIPO_O_JOGO,
                      PAIR_PECA_TIPO_L1_JOGO,
                      PAIR_PECA_TIPO_L2_JOGO,
-                     PAIR_PECA_TIPO_I_JOGO};
+                     PAIR_PECA_TIPO_I_JOGO,
+                     0,
+                     PAIR_PECA_PROJECAO_JOGO};
 
     if (peca.tipoPeca == PECA_INVALIDA)
     {
