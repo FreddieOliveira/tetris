@@ -40,7 +40,6 @@ processaTelaMenu(void)
 {
     static bool primeiraExecucao = true;
     estados_e estado = TELA_MENU;
-    int ch;
 
     if (primeiraExecucao == true)
     {
@@ -50,9 +49,7 @@ processaTelaMenu(void)
     }
 
     // capitaliza o input para simplificar os cases
-    ch = toupper(getch());
-
-    switch (ch)
+    switch (toupper(getch()))
     {
         // redesenha a tela com ctrl-L
         case CTRL('l'):
@@ -64,6 +61,7 @@ processaTelaMenu(void)
 
         // move o cursor pra cima qnd precionado a seta pra cima
         case KEY_UP:
+        case 'K':
             apagaSelecao(opcaoAtual);
             opcaoAtual = (opcaoAtual + NUM_DE_OPCOES - 1) % NUM_DE_OPCOES;
             desenhaSelecao(opcaoAtual);
@@ -71,6 +69,7 @@ processaTelaMenu(void)
 
         // move o cursor pra baixo qnd precionado a seta pra baixo
         case KEY_DOWN:
+        case 'J':
             apagaSelecao(opcaoAtual);
             opcaoAtual = (opcaoAtual + 1) % NUM_DE_OPCOES;
             desenhaSelecao(opcaoAtual);
@@ -79,6 +78,8 @@ processaTelaMenu(void)
         // seleciona a opcao atual
         case KEY_RIGHT:
         case KEY_ENTER:
+        case 'L':
+        case ' ':
         case 10:
             if (opcaoAtual == OP_NOVO_JOGO)
             {
@@ -151,7 +152,7 @@ desenhaRecordes(void)
     do
     {
         ch = toupper(getch());
-    } while (ch != KEY_ENTER && ch != 10);
+    } while (ch != KEY_ENTER && ch != 10 && ch != ' ');
 
     // apaga as 8 linhas abaixo da opcao recorde (5 linhas dos
     // melhores tempos mais as 2 linhas restantes do menu)
@@ -217,6 +218,8 @@ escolheDificuldade(void)
         {
             case KEY_UP:
             case KEY_RIGHT:
+            case 'K':
+            case 'L':
                 if (jogo.dificuldadeInicial < 30)
                 {
                     jogo.dificuldadeInicial++;
@@ -225,6 +228,8 @@ escolheDificuldade(void)
 
             case KEY_DOWN:
             case KEY_LEFT:
+            case 'J':
+            case 'H':
                 if (jogo.dificuldadeInicial > 0)
                 {
                     jogo.dificuldadeInicial--;
@@ -234,7 +239,7 @@ escolheDificuldade(void)
             default:
                 break;
         }
-    } while (ch != KEY_ENTER && ch != 10);
+    } while (ch != KEY_ENTER && ch != 10 && ch != ' ');
 
     // antes de sair apaga as 3 linhas abaixo da opcao de dificuldade
     // (a linha da selecao mais as outras duas linhas do menu)

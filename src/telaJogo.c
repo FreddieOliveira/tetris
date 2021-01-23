@@ -115,7 +115,6 @@ processaTelaJogo(void)
 {
     static bool necessitaDesenhar = true;
     estados_e estado = TELA_JOGO;
-    int ch;
 
     if (necessitaDesenhar == true)
     {
@@ -131,9 +130,7 @@ processaTelaJogo(void)
     }
 
     // capitaliza o input para simplificar os cases
-    ch = toupper(getch());
-
-    switch (ch)
+    switch (toupper(getch()))
     {
         // redesenha a tela com ctrl-L
         case CTRL('l'):
@@ -145,21 +142,25 @@ processaTelaJogo(void)
 
         // move o cursor pra cima qnd precionado a seta pra cima
         case KEY_UP:
+        case 'K':
             rotacionaPecaAtual();
             break;
 
         // move o cursor pra baixo qnd precionado a seta pra baixo
         case KEY_RIGHT:
+        case 'L':
             movimentaPecaAtual(DIREITA);
             break;
 
         // move o cursor pra baixo qnd precionado a seta pra baixo
         case KEY_LEFT:
+        case 'H':
             movimentaPecaAtual(ESQUERDA);
             break;
 
         // hard drop
         case KEY_DOWN:
+        case 'J':
             abaixaPecaAtual();
             break;
 
